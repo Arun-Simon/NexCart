@@ -1,16 +1,15 @@
-# Stage 1: builder
+# Stage 1 - builder
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
-COPY src/ ./src/
+RUN npm ci --only=production
 
-# Stage 2: runner
+# Stage 2 - runner
 FROM node:20-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/src ./src
-
+COPY src/ ./src/
+USER appuser
 EXPOSE 3002
 CMD ["node", "src/index.js"]
