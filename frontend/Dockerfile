@@ -1,13 +1,12 @@
-# Stage 1: builder
+# Stage 1 - builder
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
-COPY src/ ./src/
-COPY index.html vite.config.js tailwind.config.js postcss.config.js ./
+COPY . .
 RUN npm run build
 
-# Stage 2: runner
+# Stage 2 - runner
 FROM nginx:alpine AS runner
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf

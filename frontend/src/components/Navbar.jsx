@@ -1,20 +1,13 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
-import { notificationsApi } from '../api'
 import toast from 'react-hot-toast'
 
 const ShoppingCartIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
       d="M3 3h2l.4 2M7 13h10l4-9H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-  </svg>
-)
-const BellIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
   </svg>
 )
 const UserIcon = () => (
@@ -33,15 +26,7 @@ export default function Navbar() {
   const { user, isAuth, logout } = useAuth()
   const { itemCount } = useCart()
   const navigate = useNavigate()
-  const [unread, setUnread] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
-
-  useEffect(() => {
-    if (!isAuth) return
-    notificationsApi.list()
-      .then(({ data }) => setUnread(data.data.unreadCount))
-      .catch(() => {})
-  }, [isAuth])
 
   const handleLogout = async () => {
     await logout()
@@ -84,15 +69,7 @@ export default function Navbar() {
                   )}
                 </Link>
 
-                {/* Notifications */}
-                <Link to="/notifications" className="relative p-2 rounded-xl hover:bg-surface-700 transition-colors">
-                  <BellIcon />
-                  {unread > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 badge-brand min-w-[18px] h-[18px] text-[10px] animate-pulse-slow">
-                      {unread}
-                    </span>
-                  )}
-                </Link>
+
 
                 {/* User menu */}
                 <div className="relative">

@@ -29,8 +29,3 @@ export const ordersApi = {
   get:    (id) => api.get(`/orders/${id}`),
 }
 
-export const notificationsApi = {
-  list:      ()   => api.get('/notifications'),
-  markRead:  (id) => api.patch(`/notifications/${id}/read`),
-  markAllRead: () => api.patch('/notifications/read-all'),
-}

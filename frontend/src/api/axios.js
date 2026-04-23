@@ -1,72 +1,38 @@
-import axios from 'axios'
+import axios from 'axios';
+
+const baseURL = import.meta.env.PROD 
+  ? '/api' 
+  : (import.meta.env.VITE_GATEWAY_URL || 'http://localhost:3000');
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
-  timeout: 15000,
-  headers: { 'Content-Type': 'application/json' },
-})
+  baseURL,
+});
 
-// ─── Request interceptor — attach Bearer token ────────────────────────────────
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken')
-    if (token) config.headers.Authorization = `Bearer ${token}`
-    return config
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
   },
-  (err) => Promise.reject(err)
-)
-
-// ─── Response interceptor — auto-refresh on 401 ──────────────────────────────
-let isRefreshing = false
-let refreshQueue = []
-
-const processQueue = (error, token = null) => {
-  refreshQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token)))
-  refreshQueue = []
-}
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 api.interceptors.response.use(
-  (res) => res,
-  async (error) => {
-    const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
-      const refreshToken = localStorage.getItem('refreshToken')
-      if (!refreshToken) {
-        window.dispatchEvent(new Event('auth:logout'))
-        return Promise.reject(error)
-      }
-
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          refreshQueue.push({ resolve, reject })
-        }).then((token) => {
-          original.headers.Authorization = `Bearer ${token}`
-          return api(original)
-        })
-      }
-
-      original._retry = true
-      isRefreshing = true
-
-      try {
-        const { data } = await axios.post('/api/auth/refresh', { refreshToken })
-        const newToken = data.data.accessToken
-        localStorage.setItem('accessToken', newToken)
-        processQueue(null, newToken)
-        original.headers.Authorization = `Bearer ${newToken}`
-        return api(original)
-      } catch (err) {
-        processQueue(err, null)
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
-        window.dispatchEvent(new Event('auth:logout'))
-        return Promise.reject(err)
-      } finally {
-        isRefreshing = false
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Could handle token refresh here if we wanted
+      if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
+        localStorage.removeItem('accessToken');
+        window.location.href = '/login';
       }
     }
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 
-export default api
+export default api;

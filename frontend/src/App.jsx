@@ -12,8 +12,6 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Cart from './pages/Cart'
 import Orders from './pages/Orders'
-import Notifications from './pages/Notifications'
-
 function AppRoutes() {
   return (
     <Routes>
@@ -26,8 +24,6 @@ function AppRoutes() {
       {/* Protected Routes */}
       <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
       <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-      <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-      
       {/* Fallback */}
       <Route path="*" element={
         <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4">
