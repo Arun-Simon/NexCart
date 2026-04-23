@@ -1,0 +1,219 @@
+version: '3.9'
+
+services:
+  postgres-auth:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: nexcart
+      POSTGRES_USER: nexcart
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexcart123}
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+      - ./db/init-auth.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexcart -d nexcart"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexcart-network
+
+  postgres-products:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: nexcart
+      POSTGRES_USER: nexcart
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexcart123}
+    volumes:
+      - postgres_products_data:/var/lib/postgresql/data
+      - ./db/init-products.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexcart -d nexcart"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexcart-network
+
+  postgres-orders:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: nexcart
+      POSTGRES_USER: nexcart
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexcart123}
+    volumes:
+      - postgres_orders_data:/var/lib/postgresql/data
+      - ./db/init-orders.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexcart -d nexcart"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexcart-network
+
+  postgres-notifications:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: nexcart
+      POSTGRES_USER: nexcart
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nexcart123}
+    volumes:
+      - postgres_notifications_data:/var/lib/postgresql/data
+      - ./db/init-notifications.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexcart -d nexcart"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nexcart-network
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: nexcart
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-nexcart123}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics ping
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - nexcart-network
+
+  auth:
+    build:
+      context: ./services/auth
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DB_HOST=postgres-auth
+      - DB_PORT=5432
+      - DB_NAME=nexcart
+      - DB_USER=nexcart
+      - DB_PASS=${POSTGRES_PASSWORD:-nexcart123}
+      - JWT_SECRET=${JWT_SECRET:-nexcart_super_secret_jwt_key_change_in_prod}
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+    networks:
+      - nexcart-network
+
+  products:
+    build:
+      context: ./services/products
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - DB_HOST=postgres-products
+      - DB_PORT=5432
+      - DB_NAME=nexcart
+      - DB_USER=nexcart
+      - DB_PASS=${POSTGRES_PASSWORD:-nexcart123}
+      - JWT_SECRET=${JWT_SECRET:-nexcart_super_secret_jwt_key_change_in_prod}
+    depends_on:
+      postgres-products:
+        condition: service_healthy
+    networks:
+      - nexcart-network
+
+  orders:
+    build:
+      context: ./services/orders
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - DB_HOST=postgres-orders
+      - DB_PORT=5432
+      - DB_NAME=nexcart
+      - DB_USER=nexcart
+      - DB_PASS=${POSTGRES_PASSWORD:-nexcart123}
+      - JWT_SECRET=${JWT_SECRET:-nexcart_super_secret_jwt_key_change_in_prod}
+      - RABBITMQ_URL=amqp://nexcart:${RABBITMQ_PASS:-nexcart123}@rabbitmq:5672
+    depends_on:
+      postgres-orders:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - nexcart-network
+
+  notifications:
+    build:
+      context: ./services/notifications
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - DB_HOST=postgres-notifications
+      - DB_PORT=5432
+      - DB_NAME=nexcart
+      - DB_USER=nexcart
+      - DB_PASS=${POSTGRES_PASSWORD:-nexcart123}
+      - JWT_SECRET=${JWT_SECRET:-nexcart_super_secret_jwt_key_change_in_prod}
+      - RABBITMQ_URL=amqp://nexcart:${RABBITMQ_PASS:-nexcart123}@rabbitmq:5672
+    depends_on:
+      postgres-notifications:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - nexcart-network
+
+  gateway:
+    build:
+      context: ./services/gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - AUTH_URL=http://auth:3001
+      - PRODUCTS_URL=http://products:3002
+      - ORDERS_URL=http://orders:3003
+      - NOTIFICATIONS_URL=http://notifications:3004
+      - CORS_ORIGIN=http://localhost
+    depends_on:
+      - auth
+      - products
+      - orders
+      - notifications
+    networks:
+      - nexcart-network
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - gateway
+    networks:
+      - nexcart-network
+
+networks:
+  nexcart-network:
+    driver: bridge
+
+volumes:
+  postgres_auth_data:
+  postgres_products_data:
+  postgres_orders_data:
+  postgres_notifications_data:
+  rabbitmq_data:
